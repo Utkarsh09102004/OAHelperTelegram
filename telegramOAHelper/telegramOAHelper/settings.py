@@ -25,12 +25,14 @@ SECRET_KEY = 'django-insecure-gwz)*z&5v2_hfmn=oh2k&()6iom*y(3ovh9gaq#+pc4p&1)0(i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'TelegramBot'
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
