@@ -24,5 +24,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('bot/', include('bot_app.urls')),  # Include bot_app URLs
+    path('bot/', include('TelegramBot.urls')),  # Include bot_app URLs
 ]
