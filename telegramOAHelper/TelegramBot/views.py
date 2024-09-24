@@ -2,6 +2,8 @@
 
 import os
 import logging
+import json  # For parsing JSON data
+import asyncio  # For asyncio primitives
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -40,6 +42,10 @@ models = {
 
 # Initialize the Application
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+# Flag and Lock for initialization
+application_initialized = False
+application_lock = asyncio.Lock()
 
 # Helper function to split messages
 def split_message(text, max_length):
@@ -221,17 +227,21 @@ async def process_media_group(context: ContextTypes.DEFAULT_TYPE):
         )
 
 # Webhook view to receive updates from Telegram
-import json  # <-- Import json for JSON parsing
-
-
-# Webhook view to receive updates from Telegram
 @csrf_exempt
 async def webhook(request):
+    global application_initialized
+    if not application_initialized:
+        # Ensure that only one coroutine initializes the application
+        async with application_lock:
+            if not application_initialized:
+                await application.initialize()
+                application_initialized = True
+
     if request.method == 'POST':
         # Retrieve the JSON update from Telegram
-        request_body = request.body  # Corrected: Do not await request.body
+        request_body = request.body  # Do not await request.body
         try:
-            data = json.loads(request_body.decode('utf-8'))  # <-- Parse JSON data
+            data = json.loads(request_body.decode('utf-8'))  # Parse JSON data
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse JSON: {e}")
             return HttpResponse(status=400)  # Return 400 Bad Request if JSON is invalid
@@ -244,7 +254,6 @@ async def webhook(request):
         return HttpResponse(status=200)
     else:
         return HttpResponse("Hello, world. This is the bot webhook endpoint.")
-
 
 # Register handlers with the application
 application.add_handler(CommandHandler("start", start))
