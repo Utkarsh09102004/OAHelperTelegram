@@ -225,7 +225,7 @@ async def process_media_group(context: ContextTypes.DEFAULT_TYPE):
 async def webhook(request):
     if request.method == 'POST':
         # Retrieve the JSON update from Telegram
-        request_body = await request.body
+        request_body = request.body  # Corrected: Do not await request.body
         update = Update.de_json(request_body.decode('utf-8'), application.bot)
         # Process the update with the application
         await application.process_update(update)
