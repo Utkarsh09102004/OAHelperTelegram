@@ -221,17 +221,30 @@ async def process_media_group(context: ContextTypes.DEFAULT_TYPE):
         )
 
 # Webhook view to receive updates from Telegram
+import json  # <-- Import json for JSON parsing
+
+
+# Webhook view to receive updates from Telegram
 @csrf_exempt
 async def webhook(request):
     if request.method == 'POST':
         # Retrieve the JSON update from Telegram
         request_body = request.body  # Corrected: Do not await request.body
-        update = Update.de_json(request_body.decode('utf-8'), application.bot)
+        try:
+            data = json.loads(request_body.decode('utf-8'))  # <-- Parse JSON data
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse JSON: {e}")
+            return HttpResponse(status=400)  # Return 400 Bad Request if JSON is invalid
+
+        # Parse the JSON data into an Update object
+        update = Update.de_json(data, application.bot)
+
         # Process the update with the application
         await application.process_update(update)
         return HttpResponse(status=200)
     else:
         return HttpResponse("Hello, world. This is the bot webhook endpoint.")
+
 
 # Register handlers with the application
 application.add_handler(CommandHandler("start", start))
