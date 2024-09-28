@@ -186,7 +186,7 @@ Write exactly what is presented without adding explanations or interpretations. 
         response = await asyncio.to_thread(model.generate_content, [prompt] + uploaded_files)
         gemini_output = response.text  # Adjust according to actual response format
 
-        extract_json_from_text(gemini_output);
+
 
         json_questions = extract_json_from_text(gemini_output)
 
@@ -194,7 +194,7 @@ Write exactly what is presented without adding explanations or interpretations. 
             # Handle the case where JSON extraction failed
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="Failed to extract questions from the image analysis. Please try again."
+                text="Failed to extract questions from the image analysis. Please try again." + gemini_output
             )
             await status_message.edit_text("Processing complete.")
             return
@@ -208,12 +208,14 @@ Write exactly what is presented without adding explanations or interpretations. 
                 try:
                     client = Client(f"yuntian-deng/{model_name}")
                     # Create the prompt for the question
-                    inputs = f'''Please process and solve the following question provided below.
-
-        Question {question_number}: {question_text}
+                    inputs = f'''
+        
 
         Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
-        Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message.'''
+        Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
+        
+        Question {question_number}: {question_text}'''
+
 
                     # Run client.predict with the inputs
                     result = await asyncio.to_thread(
