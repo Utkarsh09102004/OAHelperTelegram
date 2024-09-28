@@ -132,13 +132,33 @@ def extract_json_from_text(text):
                 if nesting == 0:
                     # Extract the JSON portion
                     json_text = text[start:i+1]
-                    return json_text
+
+                    # Preprocess the JSON text within this function
+                    json_text = preprocess_json_string(json_text)
+
+                    try:
+                        json_dict = json.loads(json_text)
+                        return json_dict
+                    except json.JSONDecodeError as e:
+                        # Handle parsing error
+                        print(f"Failed to parse JSON: {e}")
+                        return None
 
         escape = False
 
     return None  # No matching '}' found
 
-# Function to process images (single or multiple)
+import re
+def preprocess_json_string(json_str):
+    # Replace single quotes with double quotes
+    json_str = json_str.replace("'", '"')
+    # Ensure keys are enclosed in double quotes
+    json_str = re.sub(r'(\b\w+\b)(\s*):', r'"\1":', json_str)
+    # Remove trailing commas before closing braces or brackets
+    json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
+    return json_str
+
+
 async def process_images(context, messages, selected_model, chat_id):
     # Send initial status message to the user
     status_message = await context.bot.send_message(
@@ -150,12 +170,12 @@ async def process_images(context, messages, selected_model, chat_id):
     async def update_status():
         dots = 1
         while not getattr(update_status, 'done', False):
-            await asyncio.sleep(5)  # Update every 5 seconds
+            await asyncio.sleep(2)  # Update every 5 seconds
             try:
                 await status_message.edit_text(
                     f"Processing your image(s) with the {selected_model} model{'.' * dots}"
                 )
-                dots = (dots % 3) + 1
+                dots = (dots % 7) + 1
             except Exception as e:
                 logging.error(f"Error updating status message: {e}")
                 break
