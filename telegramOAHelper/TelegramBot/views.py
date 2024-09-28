@@ -210,7 +210,7 @@ Return the response in the following JSON format:
 "...": "..."
 }
 ```
-the json format should be such that I can directly use json.loads function in python
+the json format should be such that I can directly use json.loads function in python, this means no ternary operators
 
 Write exactly what is presented without adding explanations or interpretations. If the image contains multiple questions, clearly separate each one as '1', '2', and so on, ensuring that each question is distinct and correctly formatted in the JSON structure.'''
 
