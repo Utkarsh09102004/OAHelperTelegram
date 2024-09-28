@@ -104,6 +104,29 @@ async def upload_image_to_genai(file):
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
+import re
+import json
+
+def extract_json_from_text(text_response):
+    # This pattern matches a string that starts with '{' and ends with '}'
+    pattern = r'\{[^{}]*\}'
+    match = re.search(pattern, text_response)
+
+    if match:
+        json_str = match.group(0)
+
+        # Manually modify the string to ensure keys are quoted correctly
+        # This assumes simple structure like {1:"hello", 2:"bye"}
+        json_str_corrected = re.sub(r'(\w+):', r'"\1":', json_str)
+
+        try:
+            # Try to load the corrected string as JSON
+            json_obj = json.loads(json_str_corrected)
+            return json_obj
+        except json.JSONDecodeError:
+            return None  # If there's an issue decoding JSON
+    return None
+
 # Function to process images (single or multiple)
 async def process_images(context, messages, selected_model, chat_id):
     # Send initial status message to the user
@@ -140,55 +163,103 @@ async def process_images(context, messages, selected_model, chat_id):
         # Use the GenAI model for analysis
         model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
         prompt = '''Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
-                Write exactly what is presented without adding explanations or interpretations.
-                If the image contains multiple questions, clearly label each one as 'Question 1:', 'Question 2:', 'Question 3:', etc., ensuring that each question is fully separated and distinguishable.'''
+
+
+
+Return the response in the following JSON format:
+
+
+
+```
+
+{
+ "1": "First question based on the image.",
+"2": "Second question based on the image.",
+"3": "Third question based on the image.",
+"...": "..."
+}
+```
+
+Write exactly what is presented without adding explanations or interpretations. If the image contains multiple questions, clearly separate each one as '1', '2', and so on, ensuring that each question is distinct and correctly formatted in the JSON structure.'''
 
         # Run the blocking call in a separate thread
         response = await asyncio.to_thread(model.generate_content, [prompt] + uploaded_files)
         gemini_output = response.text  # Adjust according to actual response format
 
-        # Create a list of models to try, starting with the selected model
-        models_to_try = [m for m in models.keys() if m != selected_model]
-        models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
+        extract_json_from_text(gemini_output);
 
-        for model_name in models_to_try:
-            try:
-                client = Client(f"yuntian-deng/{model_name}")
-                # Run the blocking client.predict in a separate thread
-                result = await asyncio.to_thread(
-                    client.predict,
-                    inputs='''Please process and solve the following question(s) provided below. For each question, deliver your answer clearly and concisely. If a question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments. Each answer should be labeled correspondingly to match the question number (e.g., 'Answer to Question 1:', 'Answer to Question 2:', etc.). Ensure your responses are precise and directly address the specifics of each question. Present your answers in a format that is easy to read and understand in a Telegram message.''' + gemini_output,
-                    top_p=1,
-                    temperature=1,
-                    chat_counter=0,
-                    chatbot=[],
-                    api_name="/predict",
-                )
-                message_text = result[0][0][1]  # Adjust according to actual response format
+        json_questions = extract_json_from_text(gemini_output)
 
-                # Send the final result back to the user
-                message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
-                for chunk in message_chunks:
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=chunk,
-                        parse_mode='Markdown'
+        if json_questions is None:
+            # Handle the case where JSON extraction failed
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="Failed to extract questions from the image analysis. Please try again."
+            )
+            await status_message.edit_text("Processing complete.")
+            return
+
+        # Iterate over the questions
+        for question_number, question_text in json_questions.items():
+            models_to_try = [m for m in models.keys() if m != selected_model]
+            models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
+
+            for model_name in models_to_try:
+                try:
+                    client = Client(f"yuntian-deng/{model_name}")
+                    # Create the prompt for the question
+                    inputs = f'''Please process and solve the following question provided below.
+
+        Question {question_number}: {question_text}
+
+        Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
+        Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message.'''
+
+                    # Run client.predict with the inputs
+                    result = await asyncio.to_thread(
+                        client.predict,
+                        inputs=inputs,
+                        top_p=1,
+                        temperature=1,
+                        chat_counter=0,
+                        chatbot=[],
+                        api_name="/predict",
                     )
-                await status_message.edit_text("Processing complete.")
-                return  # Exit the function upon successful processing
-            except Exception as e:
-                logging.error(f"Error processing with {model_name}: {e}")
-                # Inform user of fallback
-                await status_message.edit_text(
-                    f"There was an issue processing with {model_name}. Trying with the next fallback model..."
-                )
-                selected_model = model_name  # Update to the current model for the next iteration
 
-        # If all models fail, send a final message to the user
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="All models failed to process the image. Please try again later."
-        )
+                    message_text = result[0][0][1]  # Adjust according to actual response format
+
+                    # Send the result back to the user
+                    message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
+                    for chunk in message_chunks:
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=chunk,
+                            parse_mode='Markdown'
+                        )
+
+                    # Update the status message
+                    await status_message.edit_text(f"Processed question {question_number} successfully.")
+                    # Break out of the models_to_try loop since we have successfully processed the question
+                    break
+
+                except Exception as e:
+                    logging.error(f"Error processing question {question_number} with {model_name}: {e}")
+                    # Optionally, inform user of fallback
+                    await status_message.edit_text(
+                        f"There was an issue processing question {question_number} with {model_name}. Trying with the next fallback model..."
+                    )
+                    # Continue to next model
+
+            else:
+                # If all models fail for this question, send a message to the user
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"All models failed to process question {question_number}. Please try again later."
+                )
+
+        # After all questions are processed, edit the status message
+        await status_message.edit_text("Processing complete.")
+
     finally:
         # Stop the status update task
         update_status.done = True
