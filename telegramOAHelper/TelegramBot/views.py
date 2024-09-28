@@ -15,6 +15,7 @@ import google.generativeai as genai
 import tempfile
 from gradio_client import Client
 from dotenv import load_dotenv
+import json
 
 MAX_MESSAGE_LENGTH = 4000
 
@@ -104,28 +105,38 @@ async def upload_image_to_genai(file):
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
-import re
-import json
 
-def extract_json_from_text(text_response):
-    # This pattern matches a string that starts with '{' and ends with '}'
-    pattern = r'\{[^{}]*\}'
-    match = re.search(pattern, text_response)
 
-    if match:
-        json_str = match.group(0)
+def extract_json_from_text(text):
+    start = text.find('{')
+    if start == -1:
+        return None  # No JSON found
 
-        # Manually modify the string to ensure keys are quoted correctly
-        # This assumes simple structure like {1:"hello", 2:"bye"}
-        json_str_corrected = re.sub(r'(\w+):', r'"\1":', json_str)
+    in_string = False
+    escape = False
+    nesting = 0
 
-        try:
-            # Try to load the corrected string as JSON
-            json_obj = json.loads(json_str_corrected)
-            return json_obj
-        except json.JSONDecodeError:
-            return None  # If there's an issue decoding JSON
-    return None
+    for i in range(start, len(text)):
+        c = text[i]
+
+        if c == '\\' and not escape:
+            escape = True
+            continue
+        elif c == '"' and not escape:
+            in_string = not in_string
+        elif not in_string:
+            if c == '{':
+                nesting += 1
+            elif c == '}':
+                nesting -= 1
+                if nesting == 0:
+                    # Extract the JSON portion
+                    json_text = text[start:i+1]
+                    return json_text
+
+        escape = False
+
+    return None  # No matching '}' found
 
 # Function to process images (single or multiple)
 async def process_images(context, messages, selected_model, chat_id):
