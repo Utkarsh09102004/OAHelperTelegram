@@ -65,7 +65,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
     )
 
-# Button handler for model selection
+
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -108,7 +108,7 @@ async def process_images(context, messages, selected_model, chat_id):
     # Send status message to the user
     status_message = await context.bot.send_message(
         chat_id=chat_id,
-        text="Processing your image(s) with the Gemini model..."
+        text=f"Processing your image(s) with the {selected_model} model..."
     )
 
     uploaded_files = []
@@ -119,39 +119,48 @@ async def process_images(context, messages, selected_model, chat_id):
         uploaded_file = await upload_image_to_genai(file)
         uploaded_files.append(uploaded_file)
 
-    # Use the Gemini model for analysis
+    # Use the GenAI model for analysis
     model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
     prompt = "Return whatever is written in the image; basically perform OCR of all images."
     response = model.generate_content([prompt] + uploaded_files)
     gemini_output = response.text  # Adjust according to actual response format
-    print(gemini_output)
 
-    # Update status message
-    await status_message.edit_text(
-        f"Processing the Gemini output with the {selected_model} model..."
+    # Create a list of models to try, starting with the selected model
+    models_to_try = [model for model in models.keys() if model != selected_model]
+    models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
+
+    for model in models_to_try:
+        try:
+            client = Client(f"yuntian-deng/{model}")
+            result = client.predict(
+                inputs=gemini_output + " explain whatever is written",
+                top_p=1,
+                temperature=1,
+                chat_counter=0,
+                chatbot=[],
+                api_name="/predict",
+            )
+            message_text = result[0][0][1]  # Adjust according to actual response format
+            # Send the final result back to the user
+            message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
+            for chunk in message_chunks:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"Final Result from {model} model:\n{chunk}",
+                )
+            return  # Exit the function upon successful processing
+        except Exception as e:
+            # Inform user of fallback
+            await status_message.edit_text(
+                f"There was an issue processing with {model}. Trying with next fallback model..."
+            )
+            selected_model = model  # Update to the current model for the next iteration
+
+    # If all models fail, send a final message to the user
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="All models failed to process the image. Please try again later."
     )
-
-    # Use Gradio client to process the Gemini output with the selected model
-    client = Client(f"yuntian-deng/{selected_model}")
-    result = client.predict(
-        inputs=gemini_output + " explain whatever is written",
-        top_p=1,
-        temperature=1,
-        chat_counter=0,
-        chatbot=[],
-        api_name="/predict",
-    )
-    message_text = result[0][0][1]  # Adjust according to actual response format
-
-    # Send the final result back to the user
-    message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
-
-    # Send each chunk as a separate message
-    for chunk in message_chunks:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"Final Result from {selected_model} model:\n{chunk}",
-        )
 
 # Function to handle image uploads
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
