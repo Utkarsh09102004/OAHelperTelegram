@@ -112,62 +112,86 @@ async def process_images(context, messages, selected_model, chat_id):
         text=f"Processing your image(s) with the {selected_model} model..."
     )
 
-    uploaded_files = []
-    for message in messages:
-        photos = message.photo
-        photo = photos[-1]  # Get the highest resolution photo
-        file = await context.bot.get_file(photo.file_id)
-        uploaded_file = await upload_image_to_genai(file)
-        uploaded_files.append(uploaded_file)
+    # Start a background task to update the status message periodically
+    async def update_status():
+        dots = 1
+        while not getattr(update_status, 'done', False):
+            await asyncio.sleep(5)  # Update every 5 seconds
+            try:
+                await status_message.edit_text(
+                    f"Processing your image(s) with the {selected_model} model{'.' * dots}"
+                )
+                dots = (dots % 3) + 1
+            except Exception as e:
+                logging.error(f"Error updating status message: {e}")
+                break
 
-    # Use the GenAI model for analysis
-    model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
-    prompt = ''' Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
+    status_task = asyncio.create_task(update_status())
+
+    try:
+        uploaded_files = []
+        for message in messages:
+            photos = message.photo
+            photo = photos[-1]  # Get the highest resolution photo
+            file = await context.bot.get_file(photo.file_id)
+            uploaded_file = await upload_image_to_genai(file)
+            uploaded_files.append(uploaded_file)
+
+        # Use the GenAI model for analysis
+        model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
+        prompt = '''Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
                 Write exactly what is presented without adding explanations or interpretations.
                 If the image contains multiple questions, clearly label each one as 'Question 1:', 'Question 2:', 'Question 3:', etc., ensuring that each question is fully separated and distinguishable.'''
-    response = await model.generate_content([prompt] + uploaded_files)
-    gemini_output = response.text  # Adjust according to actual response format and make sure to capture this correctly
 
-    # Create a list of models to try, starting with the selected model
-    models_to_try = [model for model in models.keys() if model != selected_model]
-    models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
+        # Run the blocking call in a separate thread
+        response = await asyncio.to_thread(model.generate_content, [prompt] + uploaded_files)
+        gemini_output = response.text  # Adjust according to actual response format
 
-    for model in models_to_try:
-        try:
-            client = Client(f"yuntian-deng/{model}")
-            # Run the blocking call in a separate thread
-            result = await asyncio.to_thread(
-                client.predict,
-                inputs='''Please process and solve the following question(s) provided below. For each question, deliver your answer clearly and concisely. If a question involves calculations or code, format your response in a code block, always write in C++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments. Each answer should be labeled correspondingly to match the question number (e.g., 'Answer to Question 1:', 'Answer to Question 2:', etc.). Ensure your responses are precise and directly address the specifics of each question. Present your answers in a format that is easy to read and understand in a Telegram message.''' + gemini_output,
-                top_p=1,
-                temperature=1,
-                chat_counter=0,
-                chatbot=[],
-                api_name="/predict",
-            )
-            message_text = result[0][0][1]  # Adjust according to actual response format
+        # Create a list of models to try, starting with the selected model
+        models_to_try = [m for m in models.keys() if m != selected_model]
+        models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
 
-            # Send the final result back to the user
-            message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
-            for chunk in message_chunks:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=chunk,
+        for model_name in models_to_try:
+            try:
+                client = Client(f"yuntian-deng/{model_name}")
+                # Run the blocking client.predict in a separate thread
+                result = await asyncio.to_thread(
+                    client.predict,
+                    inputs='''Please process and solve the following question(s) provided below. For each question, deliver your answer clearly and concisely. If a question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments. Each answer should be labeled correspondingly to match the question number (e.g., 'Answer to Question 1:', 'Answer to Question 2:', etc.). Ensure your responses are precise and directly address the specifics of each question. Present your answers in a format that is easy to read and understand in a Telegram message.''' + gemini_output,
+                    top_p=1,
+                    temperature=1,
+                    chat_counter=0,
+                    chatbot=[],
+                    api_name="/predict",
                 )
-            return  # Exit the function upon successful processing
-        except Exception as e:
-            logging.error(f"Error processing with {model}: {e}")
-            # Inform user of fallback
-            await status_message.edit_text(
-                f"There was an issue processing with {model}. Trying with next fallback model..."
-            )
-            selected_model = model  # Update to the current model for the next iteration
+                message_text = result[0][0][1]  # Adjust according to actual response format
 
-    # If all models fail, send a final message to the user
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="All models failed to process the image. Please try again later."
-    )
+                # Send the final result back to the user
+                message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
+                for chunk in message_chunks:
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=chunk,
+                    )
+                await status_message.edit_text("Processing complete.")
+                return  # Exit the function upon successful processing
+            except Exception as e:
+                logging.error(f"Error processing with {model_name}: {e}")
+                # Inform user of fallback
+                await status_message.edit_text(
+                    f"There was an issue processing with {model_name}. Trying with the next fallback model..."
+                )
+                selected_model = model_name  # Update to the current model for the next iteration
+
+        # If all models fail, send a final message to the user
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="All models failed to process the image. Please try again later."
+        )
+    finally:
+        # Stop the status update task
+        update_status.done = True
+        await status_task  # Wait for the task to finish
 
 
 # Function to handle image uploads
