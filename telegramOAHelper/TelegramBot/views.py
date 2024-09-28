@@ -205,12 +205,12 @@ Return the response in the following JSON format:
 
 {
  "1": "First question based on the image.",
-"2": "Second question based on the image.",
+"2": "Second question based on the image.\\n second line of second question",
 "3": "Third question based on the image.",
 "...": "..."
 }
 ```
-the json format should be such that I can directly use json.loads function in python, this means no ternary operators
+IMPORTANT : the json format should be such that I can directly use json.loads function in python, always use double quots and instead of a single slash for use "\\" example "\\n"
 
 Write exactly what is presented without adding explanations or interpretations. If the image contains multiple questions, clearly separate each one as '1', '2', and so on, ensuring that each question is distinct and correctly formatted in the JSON structure.'''
 
