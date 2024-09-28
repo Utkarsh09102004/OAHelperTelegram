@@ -279,6 +279,7 @@ async def webhook(request):
         async with application_lock:
             if not application_initialized:
                 await application.initialize()
+                application.job_queue.scheduler.start()
                 application_initialized = True
 
     if request.method == 'POST':
