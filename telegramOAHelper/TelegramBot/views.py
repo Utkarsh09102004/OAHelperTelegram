@@ -193,7 +193,7 @@ async def process_images(context, messages, selected_model, chat_id):
 
         # Use the GenAI model for analysis
         model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
-        prompt = '''Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
+        prompt = '''Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured,, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
 
 
 
@@ -210,6 +210,7 @@ Return the response in the following JSON format:
 "...": "..."
 }
 ```
+the json format should be such that I can directly use json.loads function in python
 
 Write exactly what is presented without adding explanations or interpretations. If the image contains multiple questions, clearly separate each one as '1', '2', and so on, ensuring that each question is distinct and correctly formatted in the JSON structure.'''
 
