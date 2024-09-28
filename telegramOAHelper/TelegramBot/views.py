@@ -172,6 +172,7 @@ async def process_images(context, messages, selected_model, chat_id):
                     await context.bot.send_message(
                         chat_id=chat_id,
                         text=chunk,
+                        parse_mode='Markdown'
                     )
                 await status_message.edit_text("Processing complete.")
                 return  # Exit the function upon successful processing
