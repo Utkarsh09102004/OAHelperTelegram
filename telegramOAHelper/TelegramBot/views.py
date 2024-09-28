@@ -71,7 +71,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     selected_model = query.data
-    context.user_data["selected_model"] = selected_model
+    context.chat_data["selected_model"] = selected_model  # Use chat_data instead
 
     if selected_model in models:
         await query.edit_message_text(
@@ -79,6 +79,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         await query.edit_message_text("Model selection failed!")
+
 
 # Helper function to upload image to GenAI
 async def upload_image_to_genai(file):
@@ -105,7 +106,7 @@ async def upload_image_to_genai(file):
 
 # Function to process images (single or multiple)
 async def process_images(context, messages, selected_model, chat_id):
-    # Send status message to the user
+    # Send initial status message to the user
     status_message = await context.bot.send_message(
         chat_id=chat_id,
         text=f"Processing your image(s) with the {selected_model} model..."
@@ -124,8 +125,8 @@ async def process_images(context, messages, selected_model, chat_id):
     prompt = ''' Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
                 Write exactly what is presented without adding explanations or interpretations.
                 If the image contains multiple questions, clearly label each one as 'Question 1:', 'Question 2:', 'Question 3:', etc., ensuring that each question is fully separated and distinguishable.'''
-    response = model.generate_content([prompt] + uploaded_files)
-    gemini_output = response.text  # Adjust according to actual response format
+    response = await model.generate_content([prompt] + uploaded_files)
+    gemini_output = response.text  # Adjust according to actual response format and make sure to capture this correctly
 
     # Create a list of models to try, starting with the selected model
     models_to_try = [model for model in models.keys() if model != selected_model]
@@ -134,8 +135,10 @@ async def process_images(context, messages, selected_model, chat_id):
     for model in models_to_try:
         try:
             client = Client(f"yuntian-deng/{model}")
-            result = client.predict(
-                inputs='''Please process and solve the following question(s) provided below. For each question, deliver your answer clearly and concisely. If a question involves calculations or code, format your response in a code block to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments. Each answer should be labeled correspondingly to match the question number (e.g., 'Answer to Question 1:', 'Answer to Question 2:', etc.). Ensure your responses are precise and directly address the specifics of each question. Present your answers in a format that is easy to read and understand in a Telegram message.'''+ gemini_output ,
+            # Run the blocking call in a separate thread
+            result = await asyncio.to_thread(
+                client.predict,
+                inputs='''Please process and solve the following question(s) provided below. For each question, deliver your answer clearly and concisely. If a question involves calculations or code, format your response in a code block, always write in C++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments. Each answer should be labeled correspondingly to match the question number (e.g., 'Answer to Question 1:', 'Answer to Question 2:', etc.). Ensure your responses are precise and directly address the specifics of each question. Present your answers in a format that is easy to read and understand in a Telegram message.''' + gemini_output,
                 top_p=1,
                 temperature=1,
                 chat_counter=0,
@@ -143,15 +146,17 @@ async def process_images(context, messages, selected_model, chat_id):
                 api_name="/predict",
             )
             message_text = result[0][0][1]  # Adjust according to actual response format
+
             # Send the final result back to the user
             message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
             for chunk in message_chunks:
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=f"Final Result from {model} model:\n{chunk}",
+                    text=chunk,
                 )
             return  # Exit the function upon successful processing
         except Exception as e:
+            logging.error(f"Error processing with {model}: {e}")
             # Inform user of fallback
             await status_message.edit_text(
                 f"There was an issue processing with {model}. Trying with next fallback model..."
@@ -164,15 +169,16 @@ async def process_images(context, messages, selected_model, chat_id):
         text="All models failed to process the image. Please try again later."
     )
 
+
 # Function to handle image uploads
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if "selected_model" not in context.user_data:
+    if "selected_model" not in context.chat_data:  # Use chat_data here
         await update.message.reply_text(
             "Please select a model first using the /start command."
         )
         return
 
-    selected_model = context.user_data["selected_model"]
+    selected_model = context.chat_data["selected_model"]  # And here
 
     chat_id = update.effective_chat.id
 
@@ -203,6 +209,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'media_group_id': media_group_id,
                 'selected_model': selected_model,
                 'chat_id': chat_id,
+                'chat_data': context.chat_data,  # Pass chat_data explicitly
             },
             user_id=update.effective_user.id,
             chat_id=chat_id,
@@ -214,6 +221,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await process_images(
             context, [update.message], selected_model, chat_id
         )
+
 
 # Function to process media group after waiting
 async def process_media_group(context: ContextTypes.DEFAULT_TYPE):
