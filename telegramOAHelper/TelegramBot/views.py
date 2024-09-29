@@ -264,11 +264,11 @@ Write exactly what is presented without adding explanations or interpretations. 
                     # Update the status message
                     await status_message.edit_text(f"Processed question {question_number} successfully.")
                     # Break out of the models_to_try loop since we have successfully processed the question
-                    break
                     await context.bot.send_message(
                         chat_id=chat_id,
-                        text=f"{question_number} : {question_text} done"
+                        text=f"{question_number} : {question_text} done using {model_name}"
                     )
+                    break
 
 
                 except Exception as e:
