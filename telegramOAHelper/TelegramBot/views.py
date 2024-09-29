@@ -142,7 +142,11 @@ def extract_json_from_text(json_string):
 
 
 async def process_images(context, messages, selected_model, chat_id):
-    # Send initial status message to the user
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="omg",
+
+    )
     status_message = await context.bot.send_message(
         chat_id=chat_id,
         text=f"Processing your image(s) with the {selected_model} model..."
@@ -291,6 +295,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id == context.bot.id:
         logging.info("Ignoring message from the bot itself.")
         return
+
     if "selected_model" not in context.chat_data:  # Use chat_data here
         await update.message.reply_text(
             "Please select a model first using the /start command."
@@ -336,7 +341,11 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Store the job so we can cancel/reschedule it if needed
         context.chat_data['media_group_jobs'][media_group_id] = job
     else:
-        # Single image, process it immediately
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="yye mailaaaaa",
+
+        )
         await process_images(
             context, [update.message], selected_model, chat_id
         )
