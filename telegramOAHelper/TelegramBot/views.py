@@ -333,7 +333,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'media_group_id': media_group_id,
                 'selected_model': selected_model,
                 'chat_id': chat_id,
-                'chat_data': context.chat_data,  # Pass chat_data explicitly
+                  # Pass chat_data explicitly
             },
             user_id=update.effective_user.id,
             chat_id=chat_id,
