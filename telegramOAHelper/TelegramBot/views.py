@@ -106,57 +106,32 @@ async def upload_image_to_genai(file):
             os.remove(temp_file_path)
 
 
+import json
 
-def extract_json_from_text(text):
-    start = text.find('{')
-    if start == -1:
-        return None  # No JSON found
 
-    in_string = False
-    escape = False
-    nesting = 0
+def extract_json_from_text(json_string):
+    try:
+        # Remove the 'json' prefix from the beginning
+        cleaned_string = json_string.replace('json', '', 1).strip()
 
-    for i in range(start, len(text)):
-        c = text[i]
+        # Apply necessary replacements
+        cleaned_string = (cleaned_string
+                          .replace('\n', '\\n')  # Escape newlines
+                          .replace(',\\n"', ',"')  # Fix comma-newline before string ending
+                          .replace('"\\n}', '"}')  # Fix newline before JSON end bracket
+                          )
 
-        if c == '\\' and not escape:
-            escape = True
-            continue
-        elif c == '"' and not escape:
-            in_string = not in_string
-        elif not in_string:
-            if c == '{':
-                nesting += 1
-            elif c == '}':
-                nesting -= 1
-                if nesting == 0:
-                    # Extract the JSON portion
-                    json_text = text[start:i+1]
+        # Load the cleaned string into a Python object
+        json_object = json.loads(cleaned_string)
 
-                    # Preprocess the JSON text within this function
-                    json_text = preprocess_json_string(json_text)
+        # Convert the JSON object back into a pretty-formatted JSON string
+        formatted_json = json.dumps(json_object, indent=4)
 
-                    try:
-                        json_dict = json.loads(json_text)
-                        return json_dict
-                    except json.JSONDecodeError as e:
-                        # Handle parsing error
-                        print(f"Failed to parse JSON: {e}")
-                        return None
+        return formatted_json
 
-        escape = False
-
-    return None  # No matching '}' found
-
-import re
-def preprocess_json_string(json_str):
-    # Replace single quotes with double quotes
-    json_str = json_str.replace("'", '"')
-    # Ensure keys are enclosed in double quotes
-    json_str = re.sub(r'(\b\w+\b)(\s*):', r'"\1":', json_str)
-    # Remove trailing commas before closing braces or brackets
-    json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
-    return json_str
+    except (json.JSONDecodeError, TypeError) as e:
+        # Return None in case of any error
+        return None
 
 
 async def process_images(context, messages, selected_model, chat_id):
