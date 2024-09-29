@@ -416,4 +416,4 @@ async def webhook(request):
 # Register handlers with the application
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button_handler))
-application.add_handler(MessageHandler(filters.PHOTO, handle_image))
+application.add_handler(MessageHandler(filters.PHOTO & ~filters.BOT, handle_image))
