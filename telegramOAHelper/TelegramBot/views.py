@@ -111,13 +111,21 @@ import json
 
 def extract_json_from_text(json_string):
     try:
-        # Remove the 'json' prefix from the beginning
-        cleaned_string = json_string.replace('json', '', 1).strip()
+        # Strip the string so that it starts with '{' and ends with '}'
+        start_index = json_string.find('{')
+        end_index = json_string.rfind('}') + 1
+
+        # If no valid JSON boundaries are found, return None
+        if start_index == -1 or end_index == -1:
+            return None
+
+        # Extract the portion of the string that starts with '{' and ends with '}'
+        json_string = json_string[start_index:end_index]
 
         # Apply necessary replacements
-        cleaned_string = (cleaned_string
+        cleaned_string = (json_string
                           .replace('\n', '\\n')  # Escape newlines
-                          .replace(',\\n"', ',"')  # Fix comma-newline before string ending
+                          .replace('\\n"', '"')  # Fix comma-newline before string ending
                           .replace('"\\n}', '"}')  # Fix newline before JSON end bracket
                           )
 
