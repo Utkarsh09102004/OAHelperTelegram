@@ -203,6 +203,10 @@ Write exactly what is presented without adding explanations or interpretations. 
 
 
         json_questions = extract_json_from_text(gemini_output)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=gemini_output
+        )
 
         if json_questions is None:
             # Handle the case where JSON extraction failed
