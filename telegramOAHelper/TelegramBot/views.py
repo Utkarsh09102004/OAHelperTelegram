@@ -152,7 +152,7 @@ async def process_images(context, messages, selected_model, chat_id):
     async def update_status():
         dots = 1
         while not getattr(update_status, 'done', False):
-            await asyncio.sleep(2)  # Update every 5 seconds
+            await asyncio.sleep(1)  # Update every 5 seconds
             try:
                 await status_message.edit_text(
                     f"Processing your image(s) with the {selected_model} model{'.' * dots}"
@@ -288,6 +288,9 @@ Write exactly what is presented without adding explanations or interpretations. 
 
 # Function to handle image uploads
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id == context.bot.id:
+        logging.info("Ignoring message from the bot itself.")
+        return
     if "selected_model" not in context.chat_data:  # Use chat_data here
         await update.message.reply_text(
             "Please select a model first using the /start command."
