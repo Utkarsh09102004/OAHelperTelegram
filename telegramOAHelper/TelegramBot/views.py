@@ -360,6 +360,11 @@ async def process_media_group(context: ContextTypes.DEFAULT_TYPE):
     media_group_jobs.pop(media_group_id, None)
 
     if messages:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="yye maila",
+
+        )
         await process_images(
             context, messages, selected_model, chat_id=chat_id
         )
