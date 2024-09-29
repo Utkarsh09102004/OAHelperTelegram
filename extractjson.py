@@ -25,9 +25,9 @@ def extract_question_from_text(json_string):
         json_object = json.loads(cleaned_string)
 
         # Convert the JSON object back into a pretty-formatted JSON string
-        formatted_json = json.dumps(json_object, indent=4)
 
-        return formatted_json
+
+        return json_object
 
     except (json.JSONDecodeError, TypeError) as e:
         # Return None in case of any error
