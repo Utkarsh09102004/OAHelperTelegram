@@ -290,13 +290,21 @@ Write exactly what is presented without adding explanations or interpretations. 
         await status_message.edit_text("Processing complete.")
 
     finally:
+        update_status.done = True
+        await status_task  # Wait for the task to finish
+
+        # Reset the conversation state
+        context.chat_data.pop("selected_model", None)
+        context.chat_data.pop('media_groups', None)
+        context.chat_data.pop('media_group_jobs', None)
+        # In the finally block
+        context.chat_data.clear()
+
+        # Inform the user that they need to start over
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"hehe"
+            text="Processing complete. If you wish to analyze another image, please select a model again using the /start command."
         )
-        # Stop the status update task
-        # update_status.done = True
-        # await status_task  # Wait for the task to finish
 
 
 # Function to handle image uploads
