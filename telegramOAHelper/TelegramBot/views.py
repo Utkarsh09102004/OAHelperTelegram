@@ -301,6 +301,10 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.info("Ignoring message from the bot itself.")
         return
 
+    if update.message.from_user and update.message.from_user.is_bot:
+
+        return
+
     if "selected_model" not in context.chat_data:  # Use chat_data here
         await update.message.reply_text(
             "Please select a model first using the /start command."
