@@ -289,10 +289,14 @@ Write exactly what is presented without adding explanations or interpretations. 
         # After all questions are processed, edit the status message
         await status_message.edit_text("Processing complete.")
 
-    # finally:
-    #     # Stop the status update task
-    #     update_status.done = True
-    #     await status_task  # Wait for the task to finish
+    finally:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"hehe"
+        )
+        # Stop the status update task
+        # update_status.done = True
+        # await status_task  # Wait for the task to finish
 
 
 # Function to handle image uploads
