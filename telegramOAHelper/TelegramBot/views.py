@@ -166,7 +166,7 @@ async def process_images(context, messages, selected_model, chat_id):
                 logging.error(f"Error updating status message: {e}")
                 break
 
-    status_task = asyncio.create_task(update_status())
+    # status_task = asyncio.create_task(update_status())
 
     try:
         uploaded_files = []
@@ -233,10 +233,10 @@ Write exactly what is presented without adding explanations or interpretations. 
                     inputs = f'''
         
 
-        Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
-        Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
-        
-        Question {question_number}: {question_text}'''
+                Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
+                Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
+                
+                Question {question_number}: {question_text}'''
 
 
                     # Run client.predict with the inputs
@@ -289,9 +289,15 @@ Write exactly what is presented without adding explanations or interpretations. 
         # After all questions are processed, edit the status message
         await status_message.edit_text("Processing complete.")
 
+    except:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"All models failed to process question  Please try again later."
+        )
+
     finally:
-        update_status.done = True
-        await status_task  # Wait for the task to finish
+        # update_status.done = True
+        # await status_task  # Wait for the task to finish
 
         # Reset the conversation state
         context.chat_data.pop("selected_model", None)
