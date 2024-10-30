@@ -292,7 +292,7 @@ Write exactly what is presented without adding explanations or interpretations. 
     except:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"All models failed to process question  Please try again later."
+            text=f"All models failed to process question {question_number}. Please try again later."
         )
 
     finally:
@@ -315,9 +315,13 @@ Write exactly what is presented without adding explanations or interpretations. 
 
 # Function to handle image uploads
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_message.edit_date:
+        return
+
     if update.message is None:
         logging.info("Update has no message, ignoring.")
         return
+
     if update.effective_user.id == context.bot.id:
         logging.info("Ignoring message from the bot itself.")
         return
@@ -357,7 +361,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Schedule a new job to process this media group after 2 seconds
         job = context.application.job_queue.run_once(
             process_media_group,
-            when=0.5,  # seconds
+            when=2,  # seconds
             data={
                 'media_group_id': media_group_id,
                 'selected_model': selected_model,
@@ -441,7 +445,7 @@ async def webhook(request):
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button_handler))
 
-application.add_handler(MessageHandler(filters.PHOTO , handle_image))
+application.add_handler(MessageHandler(filters.PHOTO & ~filters.EditedMessage, handle_image))
 
 
 
