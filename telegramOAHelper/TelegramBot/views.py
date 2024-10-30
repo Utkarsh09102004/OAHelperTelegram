@@ -338,10 +338,10 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # This message is part of a media group
         if media_group_id not in context.chat_data['media_groups']:
             context.chat_data['media_groups'][media_group_id] = []
-        # Store the message
+
         context.chat_data['media_groups'][media_group_id].append(update.message)
 
-        # Cancel any existing job for this media_group_id
+
         if media_group_id in context.chat_data['media_group_jobs']:
             context.chat_data['media_group_jobs'][media_group_id].schedule_removal()
 
@@ -353,7 +353,6 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'media_group_id': media_group_id,
                 'selected_model': selected_model,
                 'chat_id': chat_id,
-                # Pass chat_data explicitly
             },
             user_id=update.effective_user.id,
             chat_id=chat_id,
@@ -424,7 +423,7 @@ async def webhook(request):
         update = Update.de_json(data, application.bot)
 
         # Process the update with the application
-        await application.process_update(update)
+        asyncio.create_task(application.process_update(update))
         return HttpResponse(status=200)
     else:
         return HttpResponse("Hello, world. This is the bot webhook endpoint.")
@@ -435,6 +434,7 @@ application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button_handler))
 
 application.add_handler(MessageHandler(filters.PHOTO, handle_image))
+
 
 
 
