@@ -48,9 +48,11 @@ application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 application_initialized = False
 application_lock = asyncio.Lock()
 
+
 # Helper function to split messages
 def split_message(text, max_length):
     return [text[i:i + max_length] for i in range(0, len(text), max_length)]
+
 
 # Start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -166,7 +168,7 @@ async def process_images(context, messages, selected_model, chat_id):
                 logging.error(f"Error updating status message: {e}")
                 break
 
-    # status_task = asyncio.create_task(update_status())
+    status_task = asyncio.create_task(update_status())
 
     try:
         uploaded_files = []
@@ -204,8 +206,6 @@ Write exactly what is presented without adding explanations or interpretations. 
         response = await asyncio.to_thread(model.generate_content, [prompt] + uploaded_files)
         gemini_output = response.text  # Adjust according to actual response format
 
-
-
         json_questions = extract_json_from_text(gemini_output)
         await context.bot.send_message(
             chat_id=chat_id,
@@ -220,7 +220,6 @@ Write exactly what is presented without adding explanations or interpretations. 
             )
             await status_message.edit_text("Processing complete.")
             return
-
         context.chat_data.pop("selected_model", None)
 
         # Iterate over the questions
@@ -233,13 +232,12 @@ Write exactly what is presented without adding explanations or interpretations. 
                     client = Client(f"yuntian-deng/{model_name}")
                     # Create the prompt for the question
                     inputs = f'''
-        
 
-                Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
-                Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
-                
-                Question {question_number}: {question_text}'''
 
+        Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
+        Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
+
+        Question {question_number}: {question_text}'''
 
                     # Run client.predict with the inputs
                     result = await asyncio.to_thread(
@@ -291,15 +289,9 @@ Write exactly what is presented without adding explanations or interpretations. 
         # After all questions are processed, edit the status message
         await status_message.edit_text("Processing complete.")
 
-    except:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"All models failed to process question {question_number}. Please try again later."
-        )
-
     finally:
-        # update_status.done = True
-        # await status_task  # Wait for the task to finish
+        update_status.done = True
+        await status_task  # Wait for the task to finish
 
         # Reset the conversation state
         context.chat_data.pop("selected_model", None)
@@ -317,13 +309,6 @@ Write exactly what is presented without adding explanations or interpretations. 
 
 # Function to handle image uploads
 async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_message.edit_date:
-        return
-
-    if update.message is None:
-        logging.info("Update has no message, ignoring.")
-        return
-
     if update.effective_user.id == context.bot.id:
         logging.info("Ignoring message from the bot itself.")
         return
@@ -368,7 +353,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'media_group_id': media_group_id,
                 'selected_model': selected_model,
                 'chat_id': chat_id,
-                  # Pass chat_data explicitly
+                # Pass chat_data explicitly
             },
             user_id=update.effective_user.id,
             chat_id=chat_id,
@@ -413,6 +398,7 @@ async def process_media_group(context: ContextTypes.DEFAULT_TYPE):
             context, messages, selected_model, chat_id=chat_id
         )
 
+
 # Webhook view to receive updates from Telegram
 @csrf_exempt
 async def webhook(request):
@@ -443,11 +429,12 @@ async def webhook(request):
     else:
         return HttpResponse("Hello, world. This is the bot webhook endpoint.")
 
+
 # Register handlers with the application
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(button_handler))
 
-application.add_handler(MessageHandler(filters.PHOTO , handle_image))
+application.add_handler(MessageHandler(filters.PHOTO, handle_image))
 
 
 
