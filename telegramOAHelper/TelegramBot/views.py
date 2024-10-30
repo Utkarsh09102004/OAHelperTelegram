@@ -223,60 +223,104 @@ Write exactly what is presented without adding explanations or interpretations. 
 
         # Iterate over the questions
         for question_number, question_text in json_questions.items():
-            models_to_try = [m for m in models.keys() if m != selected_model]
-            models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
+            try:
+                models_to_try = [m for m in models.keys() if m != selected_model]
+                models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
 
-            for model_name in models_to_try:
-                try:
-                    client = Client(f"yuntian-deng/{model_name}")
-                    # Create the prompt for the question
-                    inputs = f'''
-        
+                for model_name in models_to_try:
+                    try:
+                        # Initialize the client
+                        client = Client(f"yuntian-deng/{model_name}")
 
-                Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
-                Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
-                
-                Question {question_number}: {question_text}'''
+                        # Create the prompt for the question
+                        try:
+                            inputs = f'''
+                            Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
+                            Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
 
+                            Question {question_number}: {question_text}'''
+                        except Exception as e:
+                            logging.error(
+                                f"Error creating inputs for question {question_number} with {model_name}: {e}")
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text=f"Error creating inputs for question {question_number} with {model_name}."
+                            )
+                            continue  # Skip to the next model if input creation fails
 
-                    # Run client.predict with the inputs
-                    result = await asyncio.to_thread(
-                        client.predict,
-                        inputs=inputs,
-                        top_p=1,
-                        temperature=1,
-                        chat_counter=0,
-                        chatbot=[],
-                        api_name="/predict",
-                    )
+                        # Run client.predict with the inputs
+                        try:
+                            result = await asyncio.to_thread(
+                                client.predict,
+                                inputs=inputs,
+                                top_p=1,
+                                temperature=1,
+                                chat_counter=0,
+                                chatbot=[],
+                                api_name="/predict",
+                            )
+                            message_text = result[0][0][1]  # Adjust according to actual response format
+                        except Exception as e:
+                            logging.error(
+                                f"Error predicting answer for question {question_number} with {model_name}: {e}")
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text=f"Error predicting answer for question {question_number} with {model_name}."
+                            )
+                            continue  # Skip to the next model if prediction fails
 
-                    message_text = result[0][0][1]  # Adjust according to actual response format
+                        # Split and send the result back to the user
+                        try:
+                            message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
+                            for chunk in message_chunks:
+                                await context.bot.send_message(
+                                    chat_id=chat_id,
+                                    text=chunk,
+                                    parse_mode='Markdown'
+                                )
+                        except Exception as e:
+                            logging.error(f"Error sending result for question {question_number} with {model_name}: {e}")
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text=f"Error sending result for question {question_number} with {model_name}."
+                            )
+                            continue  # Skip to the next model if message sending fails
 
-                    # Send the result back to the user
-                    message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
-                    for chunk in message_chunks:
+                        # Update the status message after successful processing
+                        try:
+                            await status_message.edit_text(f"Processed question {question_number} successfully.")
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text=f"{question_number} : {question_text} done using {model_name}"
+                            )
+                        except Exception as e:
+                            logging.error(f"Error updating status for question {question_number}: {e}")
+
+                        # Exit loop for models_to_try if successful
+                        break
+
+                    except Exception as e:
+                        logging.error(f"Unhandled error in model {model_name} loop for question {question_number}: {e}")
                         await context.bot.send_message(
                             chat_id=chat_id,
-                            text=chunk,
-                            parse_mode='Markdown'
+                            text=f"An unexpected error occurred with {model_name} for question {question_number}. Trying next model..."
                         )
 
-                    # Update the status message
-                    await status_message.edit_text(f"Processed question {question_number} successfully.")
-                    # Break out of the models_to_try loop since we have successfully processed the question
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=f"{question_number} : {question_text} done using {model_name}"
-                    )
-                    break
+            except Exception as e:
+                logging.error(f"Unhandled error processing question {question_number}: {e}")
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"Failed to process question {question_number} due to an unexpected error."
+                )
 
 
-                except Exception as e:
-                    logging.error(f"Error processing question {question_number} with {model_name}: {e}")
-                    # Optionally, inform user of fallback
-                    await status_message.edit_text(
-                        f"There was an issue processing question {question_number} with {model_name}. Trying with the next fallback model..."
-                    )
+
+                # except Exception as e:
+                #     logging.error(f"Error processing question {question_number} with {model_name}: {e}")
+                #     # Optionally, inform user of fallback
+                #     await status_message.edit_text(
+                #         f"There was an issue processing question {question_number} with {model_name}. Trying with the next fallback model..."
+                #     )
                     # Continue to next model
 
             else:
@@ -354,7 +398,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Schedule a new job to process this media group after 2 seconds
         job = context.application.job_queue.run_once(
             process_media_group,
-            when=2,  # seconds
+            when=0.5,  # seconds
             data={
                 'media_group_id': media_group_id,
                 'selected_model': selected_model,
