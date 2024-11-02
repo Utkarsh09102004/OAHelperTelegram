@@ -203,10 +203,7 @@ Write exactly what is presented without adding explanations or interpretations. 
         gemini_output = response.text  # Adjust according to actual response format
 
         json_questions = extract_json_from_text(gemini_output)
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=gemini_output
-        )
+
 
         if json_questions is None:
             # Handle the case where JSON extraction failed
@@ -217,7 +214,10 @@ Write exactly what is presented without adding explanations or interpretations. 
             await status_message.edit_text("Processing complete.")
             return
 
-
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=json_questions
+        )
         # Iterate over the questions
         for question_number, question_text in json_questions.items():
             models_to_try = [m for m in models.keys() if m != selected_model]
