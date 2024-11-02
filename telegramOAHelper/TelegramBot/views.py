@@ -261,7 +261,7 @@ Write exactly what is presented without adding explanations or interpretations. 
 
                     await context.bot.send_message(
                         chat_id=chat_id,
-                        text=f"{question_number} : {question_text} done using {model_name}"
+                        text=f"QUESTION {question_number} : {question_text} done using {model_name}"
                     )
 
                     message_text = result[0][0][1]  # Adjust according to actual response format
@@ -271,7 +271,10 @@ Write exactly what is presented without adding explanations or interpretations. 
                     for chunk in message_chunks:
                         await context.bot.send_message(
                             chat_id=chat_id,
-                            text=f'''------------------------
+                            text=f'''
+                            ANSWER
+                            ------------------------
+                            
                             
                             {chunk}
                             
