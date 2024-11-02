@@ -217,7 +217,12 @@ Write exactly what is presented without adding explanations or interpretations. 
         for question_number, question_text in json_questions.items():
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"EXTRACTED QEUSTIONS: {question_number} : {question_text}"
+                text=f'''**EXTRACTED QUESTIONS**: 
+                
+                {question_number} : ```{question_text}```
+                
+                ''',
+                parse_mode = 'Markdown'
             )
         # Iterate over the questions
         for question_number, question_text in json_questions.items():
@@ -233,7 +238,7 @@ Write exactly what is presented without adding explanations or interpretations. 
                     # Create the prompt for the question
                     inputs = f'''Deliver your answer clearly and concisely:
 
-                        1. **For multiple-choice questions (MCQs)**, only provide the correct option number and option value(e.g., **"Answer: B <option value>"**) without any additional explanation unless specified.
+                        1. **For multiple-choice questions (MCQs)**, only provide the correct option number and option value, also Encapsulate the option using triple backticks (```) to enhance readability (e.g., "```Answer: B <option value>```") without any additional explanation unless specified.
                         
                         2. **For questions involving code**, use C++ and format your code clearly. Encapsulate code segments using triple backticks (```) to enhance readability.
                         
@@ -266,7 +271,11 @@ Write exactly what is presented without adding explanations or interpretations. 
                     for chunk in message_chunks:
                         await context.bot.send_message(
                             chat_id=chat_id,
-                            text=chunk,
+                            text=f'''------------------------
+                            
+                            {chunk}
+                            
+                            ----------------------------''',
                             parse_mode='Markdown'
                         )
 
