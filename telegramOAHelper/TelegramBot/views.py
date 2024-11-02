@@ -219,7 +219,8 @@ Write exactly what is presented without adding explanations or interpretations. 
                 chat_id=chat_id,
                 text=f'''**EXTRACTED QUESTIONS**: 
                 
-                {question_number} : ```{question_text}```
+                 ```question {question_number} :
+                 {question_text}```
                 
                 ''',
                 parse_mode = 'Markdown'
