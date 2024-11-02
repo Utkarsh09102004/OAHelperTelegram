@@ -181,7 +181,7 @@ async def process_images(context, messages, selected_model, chat_id):
 
         # Use the GenAI model for analysis
         model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
-        prompt = '''Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured,, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
+        prompt = '''Please analyze the image(s) provided and generate a detailed text-based question. This question should include all relevant information visible in the image, such as any text, symbols, and visual context. Ensure the question is fully comprehensive and includes any specific details that could be relevant to solving it, such as edge cases, input formats, and any assumptions that might need to be made based on the image content. The question should be self-contained, meaning that someone (or another AI) reading it should have all the information necessary to answer the question without seeing the image. Your output should be clear and well-structured, ideally in a single paragraph, to facilitate easy understanding and processing by another AI model.
 
 
 
@@ -198,7 +198,7 @@ Return the response in the following JSON format:
 "...": "..."
 }
 ```
-IMPORTANT : the json format should be such that I can directly use json.loads function in python, always use double quots and instead of a single slash for use "\\" example "\\n"
+
 
 Write exactly what is presented without adding explanations or interpretations. If the image contains multiple questions, clearly separate each one as '1', '2', and so on, ensuring that each question is distinct and correctly formatted in the JSON structure.'''
 
@@ -220,7 +220,7 @@ Write exactly what is presented without adding explanations or interpretations. 
             )
             await status_message.edit_text("Processing complete.")
             return
-        context.chat_data.pop("selected_model", None)
+
 
         # Iterate over the questions
         for question_number, question_text in json_questions.items():
@@ -231,20 +231,24 @@ Write exactly what is presented without adding explanations or interpretations. 
                 try:
                     client = Client(f"yuntian-deng/{model_name}")
                     # Create the prompt for the question
-                    inputs = f'''
+                    inputs = f'''Deliver your answer clearly and concisely:
 
-
-        Deliver your answer clearly and concisely. If the question involves calculations or code, format your response in a code block, always write in c++ to enhance readability and distinction. For Telegram, use triple backticks (```) to encapsulate any code segments.
-        Ensure your response is precise and directly addresses the specifics of the question. Present your answer in a format that is easy to read and understand in a Telegram message. 
-
-        Question {question_number}: {question_text}'''
+                        1. **For multiple-choice questions (MCQs)**, only provide the correct option number (e.g., **"Answer: B"**) without any additional explanation unless specified.
+                        
+                        2. **For questions involving code**, use C++ and format your code clearly. Encapsulate code segments using triple backticks (```) to enhance readability.
+                        
+                        3. **For non-code questions** that require explanations, provide a straightforward answer without code blocks.
+                        
+                        Answer the question in a format that is precise, directly addresses the specifics, and is easy to read in a Telegram message.
+                        
+                        Question {question_number}: {question_text}'''
 
                     # Run client.predict with the inputs
                     result = await asyncio.to_thread(
                         client.predict,
                         inputs=inputs,
-                        top_p=1,
-                        temperature=1,
+                        top_p=0.9,
+                        temperature=0.5,
                         chat_counter=0,
                         chatbot=[],
                         api_name="/predict",
@@ -293,17 +297,12 @@ Write exactly what is presented without adding explanations or interpretations. 
         update_status.done = True
         await status_task  # Wait for the task to finish
 
-        # Reset the conversation state
-        context.chat_data.pop("selected_model", None)
-        context.chat_data.pop('media_groups', None)
-        context.chat_data.pop('media_group_jobs', None)
-        # In the finally block
-        context.chat_data.clear()
+
 
         # Inform the user that they need to start over
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Processing complete. If you wish to analyze another image, please select a model again using the /start command."
+            text="Processing complete. "
         )
 
 
@@ -360,11 +359,7 @@ async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Store the job so we can cancel/reschedule it if needed
         context.chat_data['media_group_jobs'][media_group_id] = job
     else:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="yye mailaaaaa",
 
-        )
         await process_images(
             context, [update.message], selected_model, chat_id
         )
@@ -388,11 +383,7 @@ async def process_media_group(context: ContextTypes.DEFAULT_TYPE):
     media_group_jobs.pop(media_group_id, None)
 
     if messages:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="yye maila",
 
-        )
         await process_images(
             context, messages, selected_model, chat_id=chat_id
         )
