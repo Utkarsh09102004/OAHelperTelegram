@@ -144,11 +144,7 @@ def extract_json_from_text(json_string):
 
 
 async def process_images(context, messages, selected_model, chat_id):
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="omg",
 
-    )
     status_message = await context.bot.send_message(
         chat_id=chat_id,
         text=f"Processing your image(s) with the {selected_model} model..."
@@ -227,17 +223,20 @@ Write exactly what is presented without adding explanations or interpretations. 
             models_to_try = [m for m in models.keys() if m != selected_model]
             models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
 
+
+
             for model_name in models_to_try:
                 try:
+
                     client = Client(f"yuntian-deng/{model_name}")
                     # Create the prompt for the question
                     inputs = f'''Deliver your answer clearly and concisely:
 
-                        1. **For multiple-choice questions (MCQs)**, only provide the correct option number (e.g., **"Answer: B"**) without any additional explanation unless specified.
+                        1. **For multiple-choice questions (MCQs)**, only provide the correct option number and option value(e.g., **"Answer: B <option value>"**) without any additional explanation unless specified.
                         
                         2. **For questions involving code**, use C++ and format your code clearly. Encapsulate code segments using triple backticks (```) to enhance readability.
                         
-                        3. **For non-code questions** that require explanations, provide a straightforward answer without code blocks.
+                        3. **For non-code questions** that require explanations, provide a straightforward answer give code block only if needed.
                         
                         Answer the question in a format that is precise, directly addresses the specifics, and is easy to read in a Telegram message.
                         
@@ -254,6 +253,11 @@ Write exactly what is presented without adding explanations or interpretations. 
                         api_name="/predict",
                     )
 
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"{question_number} : {question_text} done using {model_name}"
+                    )
+
                     message_text = result[0][0][1]  # Adjust according to actual response format
 
                     # Send the result back to the user
@@ -268,10 +272,7 @@ Write exactly what is presented without adding explanations or interpretations. 
                     # Update the status message
                     await status_message.edit_text(f"Processed question {question_number} successfully.")
                     # Break out of the models_to_try loop since we have successfully processed the question
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=f"{question_number} : {question_text} done using {model_name}"
-                    )
+
                     break
 
 
@@ -295,9 +296,7 @@ Write exactly what is presented without adding explanations or interpretations. 
 
     finally:
         update_status.done = True
-        await status_task  # Wait for the task to finish
-
-
+        await status_task
 
         # Inform the user that they need to start over
         await context.bot.send_message(
