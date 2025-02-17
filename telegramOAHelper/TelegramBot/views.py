@@ -228,86 +228,59 @@ Write exactly what is presented without adding explanations or interpretations. 
                 ''',
                 parse_mode = 'Markdown'
             )
-        # Iterate over the questions
-        for question_number, question_text in json_questions.items():
-            models_to_try = [m for m in models.keys() if m != selected_model]
-            models_to_try.insert(0, selected_model)  # Ensure selected model is tried first
+            # Process each question with only the selected model
+            try:
+                inputs = f'''Deliver your answer clearly and concisely:
 
-
-
-            for model_name in models_to_try:
-                try:
-
-                    # client = Client(f"yuntian-deng/{model_name}")
-                    # Create the prompt for the question
-                    inputs = f'''Deliver your answer clearly and concisely:
-
-                        1. **For multiple-choice questions (MCQs)**, only provide the correct option number and option value, also Encapsulate the option using triple backticks (```) to enhance readability (e.g., "```Answer: B <option value>```") without any additional explanation unless specified.
-                        
-                        2. **For questions involving code**, use C++ and format your code clearly. Encapsulate code segments using triple backticks (```) to enhance readability.
-                        
-                        3. **For non-code questions** that require explanations, provide a straightforward answer give code block only if needed.
-                        
-                        Answer the question in a format that is precise, directly addresses the specifics, and is easy to read in a Telegram message.
-                        
-                        Question {question_number}: {question_text}'''
-
-                    # Run client.predict with the inputs
-                    completion = client.chat.completions.create(
-                        model=models[model_name],
-                        messages=[
-                            {"role": "user", "content": inputs}
-                        ],
-                        temperature=0.5,
-                        top_p=0.9
-                    )
+                    1. **For multiple-choice questions (MCQs)**, only provide the correct option number and option value, also Encapsulate the option using triple backticks (```) to enhance readability (e.g., "```Answer: B <option value>```") without any additional explanation unless specified.
                     
-                    message_text = completion.choices[0].message.content
+                    2. **For questions involving code**, use C++ and format your code clearly. Encapsulate code segments using triple backticks (```) to enhance readability.
+                    
+                    3. **For non-code questions** that require explanations, provide a straightforward answer give code block only if needed.
+                    
+                    Answer the question in a format that is precise, directly addresses the specifics, and is easy to read in a Telegram message.
+                    
+                    Question {question_number}: {question_text}'''
 
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=f"QUESTION {question_number} : {question_text} done using {model_name}"
-                    )
+                completion = client.chat.completions.create(
+                    model=models[selected_model],
+                    messages=[
+                        {"role": "user", "content": inputs}
+                    ],
+                    temperature=0.5,
+                    top_p=0.9
+                )
+                
+                message_text = completion.choices[0].message.content
 
-    
-
-                    # Send the result back to the user
-
-                    message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
-                    for chunk in message_chunks:
-                        await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=f'''
-                            ANSWER
-                            ------------------------
-                            
-                            
-                            {chunk}
-                            
-                            ----------------------------''',
-                            parse_mode='Markdown'
-                        )
-
-                    # Update the status message
-                    await status_message.edit_text(f"Processed question {question_number} successfully.")
-                    # Break out of the models_to_try loop since we have successfully processed the question
-
-                    break
-
-
-                except Exception as e:
-                    logging.error(f"Error processing question {question_number} with {model_name}: {e}")
-                    # Optionally, inform user of fallback
-                    await status_message.edit_text(
-                        f"There was an issue processing question {question_number} with {model_name}. Trying with the next fallback model..."
-                    )
-                    # Continue to next model
-
-            else:
-                # If all models fail for this question, send a message to the user
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=f"All models failed to process question {question_number}. Please try again later."
+                    text=f"QUESTION {question_number} : {question_text} done using {selected_model}"
+                )
+
+                message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
+                for chunk in message_chunks:
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f'''
+                        ANSWER
+                        ------------------------
+                        
+                        
+                        {chunk}
+                        
+                        ----------------------------''',
+                        parse_mode='Markdown'
+                    )
+
+                # Update the status message
+                await status_message.edit_text(f"Processed question {question_number} successfully.")
+
+            except Exception as e:
+                logging.error(f"Error processing question {question_number} with {selected_model}: {e}")
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"Failed to process question {question_number}. Please try again later."
                 )
 
         # After all questions are processed, edit the status message
