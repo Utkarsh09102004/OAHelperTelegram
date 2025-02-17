@@ -247,8 +247,8 @@ Write exactly what is presented without adding explanations or interpretations. 
                     messages=[
                         {"role": "user", "content": inputs}
                     ],
-                    temperature=0.5,
-                    top_p=0.9
+                    # temperature=0.5,
+                    # top_p=0.9
                 )
                 
                 message_text = completion.choices[0].message.content
