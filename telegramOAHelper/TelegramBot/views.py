@@ -25,6 +25,7 @@ load_dotenv()
 # Fetch API keys from environment variables
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Configure the Google GenAI API with the provided key.
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -143,7 +144,7 @@ def extract_json_from_text(json_string):
         return None
 
 from openai import OpenAI
-client = OpenAI()
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 async def process_images(context, messages, selected_model, chat_id):
 
@@ -271,7 +272,7 @@ Write exactly what is presented without adding explanations or interpretations. 
     
 
                     # Send the result back to the user
-                    
+
                     message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
                     for chunk in message_chunks:
                         await context.bot.send_message(
