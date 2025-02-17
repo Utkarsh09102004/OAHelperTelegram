@@ -37,8 +37,8 @@ logging.basicConfig(
 # List of models
 models = {
     "o1": "o1",
-    "o1mini": "o1mini",
-    "ChatGPT4": "ChatGPT4",
+    "o1mini": "o3-mini",
+    "ChatGPT4": "chatgpt-4o-latest",
 }
 
 # Initialize the Application
@@ -142,6 +142,8 @@ def extract_json_from_text(json_string):
         # Return None in case of any error
         return None
 
+from openai import OpenAI
+client = OpenAI()
 
 async def process_images(context, messages, selected_model, chat_id):
 
@@ -235,7 +237,7 @@ Write exactly what is presented without adding explanations or interpretations. 
             for model_name in models_to_try:
                 try:
 
-                    client = Client(f"yuntian-deng/{model_name}")
+                    # client = Client(f"yuntian-deng/{model_name}")
                     # Create the prompt for the question
                     inputs = f'''Deliver your answer clearly and concisely:
 
@@ -250,24 +252,26 @@ Write exactly what is presented without adding explanations or interpretations. 
                         Question {question_number}: {question_text}'''
 
                     # Run client.predict with the inputs
-                    result = await asyncio.to_thread(
-                        client.predict,
-                        inputs=inputs,
-                        top_p=0.9,
+                    completion = client.chat.completions.create(
+                        model=models[model_name],
+                        messages=[
+                            {"role": "user", "content": inputs}
+                        ],
                         temperature=0.5,
-                        chat_counter=0,
-                        chatbot=[],
-                        api_name="/predict",
+                        top_p=0.9
                     )
+                    
+                    message_text = completion.choices[0].message.content
 
                     await context.bot.send_message(
                         chat_id=chat_id,
                         text=f"QUESTION {question_number} : {question_text} done using {model_name}"
                     )
 
-                    message_text = result[0][0][1]  # Adjust according to actual response format
+    
 
                     # Send the result back to the user
+                    
                     message_chunks = split_message(message_text, MAX_MESSAGE_LENGTH)
                     for chunk in message_chunks:
                         await context.bot.send_message(
