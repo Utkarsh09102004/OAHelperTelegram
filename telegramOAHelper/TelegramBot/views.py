@@ -37,8 +37,8 @@ logging.basicConfig(
 
 # List of models
 models = {
-    "o1": "o1-preview",
-    "o1mini": "o1-mini",
+    "o1": "o1",
+    "o1mini": "o3-mini",
     "ChatGPT4": "chatgpt-4o-latest",
 }
 
